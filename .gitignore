@@ -17,3 +17,4 @@ __pycache__/
 # IDE files
 .vscode/
 .idea/
+webhook_events.json
