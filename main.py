@@ -8,6 +8,7 @@ from services.razorpay_client import (
     get_mock_subscription_context
 )
 from services.llm_router import process_event_with_gemini
+from services.action_executor import execute_dispute_defense, execute_subscription_recovery
 from dotenv import load_dotenv
 import os
 import webbrowser
@@ -24,6 +25,7 @@ DASHBOARD_HTML = """
 <html>
 <head>
     <title>Razorpay Webhook Retainer Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z%22 fill=%22%230c2451%22/><path d=%22M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z%22 fill=%22%233395ff%22/></svg>">
     <style>
         :root {
             --rp-navy: #0b192c;
@@ -63,6 +65,10 @@ DASHBOARD_HTML = """
             align-items: center;
             color: #ffffff;
             letter-spacing: -0.5px;
+            gap: 8px;
+        }
+        .sidebar-logo svg {
+            flex-shrink: 0;
         }
         .sidebar-logo span {
             color: var(--rp-blue);
@@ -170,7 +176,7 @@ DASHBOARD_HTML = """
         .badge-failed { background-color: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7; }
         .badge-dispute { background-color: #fffaf0; color: #dd6b20; border: 1px solid #feebc8; }
         .badge-halted { background-color: #f0fff4; color: #38a169; border: 1px solid #c6f6d5; }
-
+ 
         .logs-container {
             background-color: #0f172a;
             border-radius: 4px;
@@ -208,7 +214,13 @@ DASHBOARD_HTML = """
 </head>
 <body>
     <div class="sidebar">
-        <div class="sidebar-logo">razorpay<span>retention</span></div>
+        <div class="sidebar-logo">
+            <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z" fill="#5b7290"/>
+                <path d="M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z" fill="#3395ff"/>
+            </svg>
+            razorpay<span>retention</span>
+        </div>
         <ul class="sidebar-menu">
             <li class="sidebar-item active">Webhook Simulator</li>
             <li class="sidebar-item">Analytics Dashboard</li>
@@ -353,7 +365,7 @@ async def get_dashboard():
 @app.post("/webhook")
 async def receive_razorpay_webhook(request: Request):
     """
-    The Omni-Trigger: Listens for incoming Razorpay webhooks, gathers context, and activates the Gemini Brain.
+    The Omni-Trigger: End-to-end autonomous loop (Listen -> Secure -> Context -> Brain -> Action).
     """
     try:
         raw_payload = await request.json()
@@ -379,7 +391,7 @@ async def receive_razorpay_webhook(request: Request):
             
         print(f"\n--- INCOMING SECURE EVENT: {event_type} ---")
         
-        # 4. Gather Context
+        # 4. Gather Context (Phase 2)
         context = {}
         if event_type == "payment.dispute.created":
             print(f"Gathering Shopify & Delhivery proof for {payment_id}...")
@@ -393,27 +405,37 @@ async def receive_razorpay_webhook(request: Request):
         # 5. Activate the Brain (Phase 3: Gemini LLM Orchestration)
         print("Engaging Gemini Flash Brain...")
         ai_result = process_event_with_gemini(event_type, secured_payload, context)
+        ai_output = ai_result["ai_decision_output"]
         
-        print("\n=== GEMINI EXECUTION RESULT ===")
-        print(ai_result["ai_decision_output"])
-        print("=================================\n")
+        # 6. Execute Real-World Actions (Phase 4: The Execution Paths)
+        print("Executing Autonomous Actions...")
+        action_result = {}
         
+        if event_type == "payment.dispute.created":
+            pdf_path = execute_dispute_defense(payment_id, ai_output)
+            action_result = {"action": "dispute_uploaded", "file": pdf_path}
+            
+        elif event_type in ["payment.failed", "subscription.halted"]:
+            recovery_res = execute_subscription_recovery(payment_id, ai_output)
+            action_result = {"action": "whatsapp_recovery_sent", "details": recovery_res}
+            
         return {
             "status": "success", 
-            "message": f"Gemini successfully processed {event_type}",
-            "ai_output": ai_result["ai_decision_output"],
+            "message": f"Full agentic loop completed for {event_type}",
+            "ai_output": ai_output,
+            "execution_result": action_result,
             "context": context
         }
 
     except Exception as e:
-        print(f"Error processing webhook through LLM: {e}")
-        raise HTTPException(status_code=400, detail="Invalid payload or LLM error")
+        print(f"Error processing full agentic loop: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload or execution error")
 
 def open_browser():
     time.sleep(1.5)
     webbrowser.open("http://localhost:8000/dashboard")
 
 if __name__ == "__main__":
-    print("Starting Unified Revenue Retention Agent (With Gemini Brain) on port 8000...")
+    print("Starting Complete Unified Revenue Retention Agent on port 8000...")
     threading.Thread(target=open_browser, daemon=True).start()
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
