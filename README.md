@@ -34,6 +34,13 @@ The project has the following directory structure:
    ```
    The webhook listener will spin up on `http://localhost:8000`.
 
+4. **Expose Local Server with NGROK (for Razorpay Webhook testing):**
+   Since Razorpay needs a public URL to send webhook events, use NGROK to expose your local port `8000`:
+   ```powershell
+   ngrok http 8000
+   ```
+   Copy the generated forwarding HTTPS URL (e.g., `https://xxxx.ngrok-free.app`) and configure it in your Razorpay Dashboard webhooks settings as the Webhook URL (pointing to `https://xxxx.ngrok-free.app/webhook`).
+
 ## Features and Guardrails
 
 ### 1. Security & PII Masking
