@@ -2,6 +2,12 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 import uvicorn
 from core.security import mask_pii
+from services.razorpay_client import (
+    get_mock_shopify_data, 
+    get_mock_delhivery_data, 
+    get_mock_subscription_context
+)
+from services.llm_router import process_event_with_gemini
 from dotenv import load_dotenv
 import os
 import webbrowser
@@ -173,7 +179,7 @@ DASHBOARD_HTML = """
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             font-size: 12px;
             color: #e2e8f0;
-            height: 350px;
+            height: 380px;
             border: 1px solid #1e293b;
         }
         .log-entry {
@@ -347,43 +353,67 @@ async def get_dashboard():
 @app.post("/webhook")
 async def receive_razorpay_webhook(request: Request):
     """
-    The Omni-Trigger: Listens for incoming Razorpay webhooks.
+    The Omni-Trigger: Listens for incoming Razorpay webhooks, gathers context, and activates the Gemini Brain.
     """
     try:
-        # 1. Capture the raw JSON payload
         raw_payload = await request.json()
-        
-        # 2. Extract the event type
         event_type = raw_payload.get("event")
         
-        # 3. Filter for the specific events we care about
         target_events = ["payment.dispute.created", "payment.failed", "subscription.halted"]
         if event_type not in target_events:
             return {"status": "ignored", "message": f"Event {event_type} not tracked."}
         
-        # 4. Scrub sensitive data (PII) before further processing
+        # 1. Scrub sensitive data (PII)
         secured_payload = mask_pii(raw_payload)
         
-        # 5. Store the secured event locally
+        # 2. Store the secured event locally
         from utils.storage import store_webhook_event
         store_webhook_event(event_type, secured_payload)
         
-        # 6. Log the secure payload (Mocking the handover to Phase 2/3)
+        # 3. Extract Payment ID safely
+        payment_id = "pay_unknown"
+        if "payment" in secured_payload.get("payload", {}):
+            payment_id = secured_payload["payload"]["payment"]["entity"].get("id", "pay_unknown")
+        elif "subscription" in secured_payload.get("payload", {}):
+            payment_id = secured_payload["payload"]["subscription"]["entity"].get("id", "sub_unknown")
+            
         print(f"\n--- INCOMING SECURE EVENT: {event_type} ---")
-        print(secured_payload)
-        print("-------------------------------------------\n")
         
-        return {"status": "success", "message": f"Event {event_type} received and secured."}
+        # 4. Gather Context
+        context = {}
+        if event_type == "payment.dispute.created":
+            print(f"Gathering Shopify & Delhivery proof for {payment_id}...")
+            context["commerce_data"] = get_mock_shopify_data(payment_id)
+            context["logistics_data"] = get_mock_delhivery_data(payment_id)
+            
+        elif event_type in ["payment.failed", "subscription.halted"]:
+            print(f"Gathering subscription profile for {payment_id}...")
+            context["subscription_data"] = get_mock_subscription_context()
+            
+        # 5. Activate the Brain (Phase 3: Gemini LLM Orchestration)
+        print("Engaging Gemini Flash Brain...")
+        ai_result = process_event_with_gemini(event_type, secured_payload, context)
+        
+        print("\n=== GEMINI EXECUTION RESULT ===")
+        print(ai_result["ai_decision_output"])
+        print("=================================\n")
+        
+        return {
+            "status": "success", 
+            "message": f"Gemini successfully processed {event_type}",
+            "ai_output": ai_result["ai_decision_output"],
+            "context": context
+        }
 
     except Exception as e:
-        print(f"Error processing webhook: {e}")
-        raise HTTPException(status_code=400, detail="Invalid payload")
+        print(f"Error processing webhook through LLM: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload or LLM error")
 
 def open_browser():
     time.sleep(1.5)
     webbrowser.open("http://localhost:8000/dashboard")
 
 if __name__ == "__main__":
-    print("Starting Omni-Trigger Webhook Listener on port 8000...")
+    print("Starting Unified Revenue Retention Agent (With Gemini Brain) on port 8000...")
     threading.Thread(target=open_browser, daemon=True).start()
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
