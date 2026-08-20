@@ -2,6 +2,8 @@
 
 A modern backend service designed to automate revenue retention by listening to payment gateway webhooks (e.g., Razorpay) for transaction failures or disputes, scrub sensitive customer data (PII), gather commerce and logistics context, and run autonomous execution actions (e.g. generating PDFs or sending recovery messages).
 
+![Webhook Dashboard](assets/dashboard_screenshot.png)
+
 ## Project Structure
 
 The project has the following directory structure:
