@@ -28,11 +28,12 @@ The project has the following directory structure:
      * `RAZORPAY_WEBHOOK_SECRET`
      * `GEMINI_API_KEY`
 
-3. **Run the FastAPI server:**
+3. **Run the FastAPI server & Interactive Dashboard:**
    ```powershell
    python main.py
    ```
-   The webhook listener will spin up on `http://localhost:8000`.
+   * The webhook listener will spin up on `http://localhost:8000`.
+   * An **Interactive Testing Dashboard** will automatically open in a new browser tab at `http://localhost:8000/dashboard` to let you test webhooks with one click.
 
 4. **Expose Local Server with NGROK (for Razorpay Webhook testing):**
    Since Razorpay needs a public URL to send webhook events, use NGROK to expose your local port `8000`:
