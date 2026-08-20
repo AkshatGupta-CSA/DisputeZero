@@ -17,97 +17,225 @@ DASHBOARD_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Revenue Retention Dashboard</title>
+    <title>Razorpay Webhook Retainer Dashboard</title>
     <style>
+        :root {
+            --rp-navy: #0b192c;
+            --rp-blue: #0c6cff;
+            --rp-blue-hover: #0056cc;
+            --rp-bg: #f8fafe;
+            --rp-card-bg: #ffffff;
+            --rp-text-main: #2d3748;
+            --rp-text-muted: #718096;
+            --rp-border: #e2e8f0;
+        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e2e;
-            color: #cdd6f4;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--rp-bg);
+            color: var(--rp-text-main);
             margin: 0;
-            padding: 40px;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 240px;
+            background-color: var(--rp-navy);
+            color: #ffffff;
             display: flex;
             flex-direction: column;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 800;
+            padding: 0 24px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+        .sidebar-logo span {
+            color: var(--rp-blue);
+            margin-left: 2px;
+            font-weight: 400;
+        }
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-item {
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #a0aec0;
+            transition: all 0.2s;
+            display: flex;
             align-items: center;
         }
-        .container {
-            width: 100%;
-            max-width: 600px;
+        .sidebar-item:hover, .sidebar-item.active {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--rp-blue);
+            padding-left: 20px;
         }
-        h1 {
-            color: #f5c2e7;
-            text-align: center;
-            margin-bottom: 5px;
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        p.subtitle {
-            color: #a6adc8;
-            text-align: center;
-            margin-bottom: 30px;
+        .topbar {
+            height: 60px;
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--rp-border);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            justify-content: space-between;
+        }
+        .topbar-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--rp-text-main);
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 30px;
+            padding: 30px;
+            flex-grow: 1;
+            overflow-y: auto;
+            align-items: start;
         }
         .card {
-            background-color: #313244;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            border: 1px solid #45475a;
-        }
-        button {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            margin: 12px 0;
-            border: none;
+            background-color: var(--rp-card-bg);
             border-radius: 6px;
-            font-size: 15px;
-            font-weight: bold;
+            border: 1px solid var(--rp-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--rp-text-muted);
+            margin-bottom: 20px;
+        }
+        .btn-webhook {
+            background-color: #ffffff;
+            border: 1px solid var(--rp-border);
+            color: var(--rp-text-main);
+            padding: 14px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s, transform 0.1s;
+            transition: all 0.15s;
+            text-align: left;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        button:active {
-            transform: scale(0.98);
+        .btn-webhook:hover {
+            border-color: var(--rp-blue);
+            box-shadow: 0 0 0 1px var(--rp-blue);
+            background-color: #fcfdff;
         }
-        .btn-failed { background-color: #f38ba8; color: #11111b; }
-        .btn-failed:hover { opacity: 0.9; }
-        .btn-dispute { background-color: #fab387; color: #11111b; }
-        .btn-dispute:hover { opacity: 0.9; }
-        .btn-halted { background-color: #a6e3a1; color: #11111b; }
-        .btn-halted:hover { opacity: 0.9; }
-        
+        .btn-webhook:active {
+            transform: scale(0.99);
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-failed { background-color: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7; }
+        .badge-dispute { background-color: #fffaf0; color: #dd6b20; border: 1px solid #feebc8; }
+        .badge-halted { background-color: #f0fff4; color: #38a169; border: 1px solid #c6f6d5; }
+
         .logs-container {
-            background-color: #11111b;
-            border-radius: 8px;
-            padding: 15px;
-            height: 200px;
+            background-color: #0f172a;
+            border-radius: 4px;
+            padding: 16px;
             overflow-y: auto;
-            font-family: 'Consolas', monospace;
-            font-size: 13px;
-            color: #89b4fa;
-            border: 1px solid #45475a;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            color: #e2e8f0;
+            height: 350px;
+            border: 1px solid #1e293b;
         }
         .log-entry {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            line-height: 1.6;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 8px;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .log-time { color: #64748b; margin-right: 8px; }
+        .log-success { color: #4ade80; font-weight: bold; }
+        .log-error { color: #f87171; font-weight: bold; }
+        .log-payload {
+            background-color: #1e293b;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+            color: #38bdf8;
+            overflow-x: auto;
             white-space: pre-wrap;
         }
-        .log-time { color: #a6adc8; }
-        .log-error { color: #f38ba8; }
-        .log-success { color: #a6e3a1; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Unified Revenue Retention Agent</h1>
-        <p class="subtitle">Mock Webhook Testing Dashboard</p>
-        
-        <div class="card">
-            <button class="btn-failed" onclick="triggerWebhook('payment.failed')">Trigger payment.failed</button>
-            <button class="btn-dispute" onclick="triggerWebhook('payment.dispute.created')">Trigger payment.dispute.created</button>
-            <button class="btn-halted" onclick="triggerWebhook('subscription.halted')">Trigger subscription.halted</button>
+    <div class="sidebar">
+        <div class="sidebar-logo">razorpay<span>retention</span></div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active">Webhook Simulator</li>
+            <li class="sidebar-item">Analytics Dashboard</li>
+            <li class="sidebar-item">Dispute Files</li>
+            <li class="sidebar-item">Security Settings</li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <div class="topbar">
+            <div class="topbar-title">Retainer Webhook Dashboard</div>
+            <div style="font-size: 12px; color: var(--rp-text-muted);">Environment: <strong style="color: var(--rp-blue)">Razorpay Test Mode</strong></div>
         </div>
-        
-        <div class="card">
-            <h3>Response Logs</h3>
-            <div id="logs" class="logs-container">
-                <div class="log-entry"><span class="log-time">[System]</span> Dashboard loaded. Ready to send webhooks.</div>
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-title">Simulate Webhook Trigger</div>
+                <button class="btn-webhook" onclick="triggerWebhook('payment.failed')">
+                    <span>payment.failed</span>
+                    <span class="badge badge-failed">Failed</span>
+                </button>
+                <button class="btn-webhook" onclick="triggerWebhook('payment.dispute.created')">
+                    <span>payment.dispute.created</span>
+                    <span class="badge badge-dispute">Dispute</span>
+                </button>
+                <button class="btn-webhook" onclick="triggerWebhook('subscription.halted')">
+                    <span>subscription.halted</span>
+                    <span class="badge badge-halted">Halted</span>
+                </button>
+            </div>
+            <div class="card">
+                <div class="card-title">Live Event Streams</div>
+                <div id="logs" class="logs-container">
+                    <div class="log-entry"><span class="log-time">[00:00:00]</span> Initialized Razorpay Dashboard listener...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -165,19 +293,30 @@ DASHBOARD_HTML = """
             }
         };
 
-        function log(message, type = 'info') {
+        function log(message, type = 'info', extra = '') {
             const logsDiv = document.getElementById('logs');
             const time = new Date().toLocaleTimeString();
             let typeClass = '';
             if (type === 'success') typeClass = 'log-success';
             if (type === 'error') typeClass = 'log-error';
             
-            logsDiv.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="${typeClass}">${message}</span></div>`;
+            let extraHTML = '';
+            if (extra) {
+                extraHTML = `<div class="log-payload">\${extra}</div>`;
+            }
+            
+            logsDiv.innerHTML += `
+                <div class="log-entry">
+                    <span class="log-time">[\${time}]</span>
+                    <span class="\${typeClass}">\${message}</span>
+                    \${extraHTML}
+                </div>
+            `;
             logsDiv.scrollTop = logsDiv.scrollHeight;
         }
 
         async function triggerWebhook(eventName) {
-            log(`Sending payload for ${eventName}...`);
+            log(`Triggering webhook endpoint with \${eventName}...`, 'info');
             try {
                 const response = await fetch('/webhook', {
                     method: 'POST',
@@ -186,13 +325,14 @@ DASHBOARD_HTML = """
                 });
                 
                 const data = await response.json();
+                const prettyJSON = JSON.stringify(data, null, 2);
                 if (response.ok) {
-                    log(`[${eventName}] Success: ${JSON.stringify(data)}`, 'success');
+                    log(`[\${eventName}] Response 200 OK`, 'success', prettyJSON);
                 } else {
-                    log(`[${eventName}] Error ${response.status}: ${JSON.stringify(data)}`, 'error');
+                    log(`[\${eventName}] Error \${response.status}`, 'error', prettyJSON);
                 }
             } catch (err) {
-                log(`[${eventName}] Network Error: ${err.message}`, 'error');
+                log(`[\${eventName}] Network Error: \${err.message}`, 'error');
             }
         }
     </script>
