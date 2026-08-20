@@ -302,21 +302,21 @@ DASHBOARD_HTML = """
             
             let extraHTML = '';
             if (extra) {
-                extraHTML = `<div class="log-payload">\${extra}</div>`;
+                extraHTML = `<div class="log-payload">${extra}</div>`;
             }
             
             logsDiv.innerHTML += `
                 <div class="log-entry">
-                    <span class="log-time">[\${time}]</span>
-                    <span class="\${typeClass}">\${message}</span>
-                    \${extraHTML}
+                    <span class="log-time">[${time}]</span>
+                    <span class="${typeClass}">${message}</span>
+                    ${extraHTML}
                 </div>
             `;
             logsDiv.scrollTop = logsDiv.scrollHeight;
         }
 
         async function triggerWebhook(eventName) {
-            log(`Triggering webhook endpoint with \${eventName}...`, 'info');
+            log(`Triggering webhook endpoint with ${eventName}...`, 'info');
             try {
                 const response = await fetch('/webhook', {
                     method: 'POST',
@@ -327,12 +327,12 @@ DASHBOARD_HTML = """
                 const data = await response.json();
                 const prettyJSON = JSON.stringify(data, null, 2);
                 if (response.ok) {
-                    log(`[\${eventName}] Response 200 OK`, 'success', prettyJSON);
+                    log(`[${eventName}] Response 200 OK`, 'success', prettyJSON);
                 } else {
-                    log(`[\${eventName}] Error \${response.status}`, 'error', prettyJSON);
+                    log(`[${eventName}] Error ${response.status}`, 'error', prettyJSON);
                 }
             } catch (err) {
-                log(`[\${eventName}] Network Error: \${err.message}`, 'error');
+                log(`[${eventName}] Network Error: ${err.message}`, 'error');
             }
         }
     </script>
