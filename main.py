@@ -364,7 +364,11 @@ async def receive_razorpay_webhook(request: Request):
         # 4. Scrub sensitive data (PII) before further processing
         secured_payload = mask_pii(raw_payload)
         
-        # 5. Log the secure payload (Mocking the handover to Phase 2/3)
+        # 5. Store the secured event locally
+        from utils.storage import store_webhook_event
+        store_webhook_event(event_type, secured_payload)
+        
+        # 6. Log the secure payload (Mocking the handover to Phase 2/3)
         print(f"\n--- INCOMING SECURE EVENT: {event_type} ---")
         print(secured_payload)
         print("-------------------------------------------\n")
