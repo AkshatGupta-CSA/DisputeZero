@@ -90,8 +90,8 @@ def save_disputes(disputes: dict):
 # Create file if missing
 if not os.path.exists(DISPUTES_FILE):
     os.makedirs("disputes", exist_ok=True)
-    for placeholder in ["defense_letter_pay_test_dispute_001.pdf", "defense_letter_pay_test_dispute_002.pdf"]:
-        placeholder_path = os.path.join("disputes", placeholder)
+    for i in range(1, 7):
+        placeholder_path = os.path.join("disputes", f"defense_letter_pay_test_dispute_{i:03d}.pdf")
         if not os.path.exists(placeholder_path):
             with open(placeholder_path, "w") as f:
                 f.write("%PDF-1.4 Mock PDF placeholder")
@@ -112,6 +112,38 @@ if not os.path.exists(DISPUTES_FILE):
             "file": os.path.join("disputes", "defense_letter_pay_test_dispute_002.pdf"),
             "amount": 1250.00,
             "created_at": "2026-08-20 18:15:00"
+        },
+        "pay_test_dispute_003": {
+            "id": "pay_test_dispute_003",
+            "dispute_id": "disp_test_003",
+            "status": "New",
+            "file": os.path.join("disputes", "defense_letter_pay_test_dispute_003.pdf"),
+            "amount": 899.00,
+            "created_at": "2026-08-20 15:45:00"
+        },
+        "pay_test_dispute_004": {
+            "id": "pay_test_dispute_004",
+            "dispute_id": "disp_test_004",
+            "status": "Pending",
+            "file": os.path.join("disputes", "defense_letter_pay_test_dispute_004.pdf"),
+            "amount": 1499.00,
+            "created_at": "2026-08-19 11:20:00"
+        },
+        "pay_test_dispute_005": {
+            "id": "pay_test_dispute_005",
+            "dispute_id": "disp_test_005",
+            "status": "Completed",
+            "file": os.path.join("disputes", "defense_letter_pay_test_dispute_005.pdf"),
+            "amount": 299.00,
+            "created_at": "2026-08-18 09:10:00"
+        },
+        "pay_test_dispute_006": {
+            "id": "pay_test_dispute_006",
+            "dispute_id": "disp_test_006",
+            "status": "New",
+            "file": os.path.join("disputes", "defense_letter_pay_test_dispute_006.pdf"),
+            "amount": 2499.00,
+            "created_at": "2026-08-20 22:05:00"
         }
     }
     save_disputes(mock_disputes)

@@ -1,10 +1,50 @@
 {
   "pay_test_dispute_001": {
     "id": "pay_test_dispute_001",
-    "dispute_id": "disp_mock_te_001",
+    "dispute_id": "disp_test_001",
     "status": "New",
     "file": "disputes\\defense_letter_pay_test_dispute_001.pdf",
-    "amount": 499.0,
-    "created_at": "2026-08-20 20:41:07"
+    "amount": 499.00,
+    "created_at": "2026-08-20 20:30:00"
+  },
+  "pay_test_dispute_002": {
+    "id": "pay_test_dispute_002",
+    "dispute_id": "disp_test_002",
+    "status": "Completed",
+    "file": "disputes\\defense_letter_pay_test_dispute_002.pdf",
+    "amount": 1250.00,
+    "created_at": "2026-08-20 18:15:00"
+  },
+  "pay_test_dispute_003": {
+    "id": "pay_test_dispute_003",
+    "dispute_id": "disp_test_003",
+    "status": "New",
+    "file": "disputes\\defense_letter_pay_test_dispute_003.pdf",
+    "amount": 899.00,
+    "created_at": "2026-08-20 15:45:00"
+  },
+  "pay_test_dispute_004": {
+    "id": "pay_test_dispute_004",
+    "dispute_id": "disp_test_004",
+    "status": "Pending",
+    "file": "disputes\\defense_letter_pay_test_dispute_004.pdf",
+    "amount": 1499.00,
+    "created_at": "2026-08-19 11:20:00"
+  },
+  "pay_test_dispute_005": {
+    "id": "pay_test_dispute_005",
+    "dispute_id": "disp_test_005",
+    "status": "Completed",
+    "file": "disputes\\defense_letter_pay_test_dispute_005.pdf",
+    "amount": 299.00,
+    "created_at": "2026-08-18 09:10:00"
+  },
+  "pay_test_dispute_006": {
+    "id": "pay_test_dispute_006",
+    "dispute_id": "disp_test_006",
+    "status": "New",
+    "file": "disputes\\defense_letter_pay_test_dispute_006.pdf",
+    "amount": 2499.00,
+    "created_at": "2026-08-20 22:05:00"
   }
 }
