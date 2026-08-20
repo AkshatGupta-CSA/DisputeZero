@@ -66,5 +66,6 @@ Mock context retrieval methods are implemented in [`services/razorpay_client.py`
 ## Handled Events
 
 The `/webhook` endpoint currently listens for and processes:
-1. `dispute.created`
-2. `subscription.charged.failed`
+1. `payment.dispute.created`
+2. `payment.failed`
+3. `subscription.halted`
