@@ -8,16 +8,9 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def process_event_with_gemini(event_type: str, secured_payload: dict, context: dict) -> dict:
     """
-    Sends the secured event and context to Gemini Flash to generate 
+    Sends the secured event and context to Gemini to generate 
     a defense letter or a recovery negotiation strategy.
     """
-    # Using Gemini 1.5 Flash or modern equivalents for webhook routing and decision making
-    # Note: If gemini-3.5-flash is not available, we can fallback to gemini-1.5-flash
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-    except Exception:
-        model = genai.GenerativeModel("gemini-pro")
-    
     if event_type == "payment.dispute.created":
         prompt = f"""
         You are an expert fintech AI legal assistant for a Razorpay merchant. 
@@ -54,8 +47,25 @@ def process_event_with_gemini(event_type: str, secured_payload: dict, context: d
     else:
         return {"error": "Unknown event type for LLM routing."}
 
-    # Generate the response from Gemini
-    response = model.generate_content(prompt)
+    # Try different models sequentially to handle API key / version model access permissions
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    response = None
+    last_error = None
+
+    for model_name in models_to_try:
+        try:
+            print(f"Attempting generation with model: {model_name}...")
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            # If successful, exit fallback loop
+            break
+        except Exception as e:
+            last_error = e
+            print(f"Model {model_name} failed: {e}")
+            continue
+
+    if response is None:
+        raise Exception(f"All Gemini models failed. Last error: {last_error}")
     
     return {
         "event_type": event_type,
