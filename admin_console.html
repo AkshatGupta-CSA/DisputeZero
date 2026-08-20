@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Razorpay Webhook Retainer Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z%22 fill=%22%230c2451%22/><path d=%22M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z%22 fill=%22%233395ff%22/></svg>">
+    <style>
+        :root {
+            --rp-navy: #0b192c;
+            --rp-blue: #0c6cff;
+            --rp-blue-hover: #0056cc;
+            --rp-bg: #f8fafe;
+            --rp-card-bg: #ffffff;
+            --rp-text-main: #2d3748;
+            --rp-text-muted: #718096;
+            --rp-border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--rp-bg);
+            color: var(--rp-text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 240px;
+            background-color: var(--rp-navy);
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 800;
+            padding: 0 24px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            gap: 8px;
+        }
+        .sidebar-logo svg {
+            flex-shrink: 0;
+        }
+        .sidebar-logo span {
+            color: var(--rp-blue);
+            margin-left: 2px;
+            font-weight: 400;
+        }
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-item {
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #a0aec0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .sidebar-item:hover, .sidebar-item.active {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--rp-blue);
+            padding-left: 20px;
+        }
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .topbar {
+            height: 60px;
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--rp-border);
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            justify-content: space-between;
+        }
+        .topbar-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--rp-text-main);
+        }
+        .active-disputes-badge {
+            background-color: #fff5f5;
+            color: #c53030;
+            border: 1px solid #fed7d7;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tab-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 30px;
+            padding: 30px;
+            align-items: start;
+        }
+        .card {
+            background-color: var(--rp-card-bg);
+            border-radius: 6px;
+            border: 1px solid var(--rp-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--rp-text-muted);
+            margin-bottom: 20px;
+        }
+        .btn-webhook {
+            background-color: #ffffff;
+            border: 1px solid var(--rp-border);
+            color: var(--rp-text-main);
+            padding: 14px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: left;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn-webhook:hover {
+            border-color: var(--rp-blue);
+            box-shadow: 0 0 0 1px var(--rp-blue);
+            background-color: #fcfdff;
+        }
+        .btn-webhook:active {
+            transform: scale(0.99);
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-failed { background-color: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7; }
+        .badge-dispute { background-color: #fffaf0; color: #dd6b20; border: 1px solid #feebc8; }
+        .badge-halted { background-color: #f0fff4; color: #38a169; border: 1px solid #c6f6d5; }
+
+        .logs-container {
+            background-color: #0f172a;
+            border-radius: 4px;
+            padding: 16px;
+            overflow-y: auto;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            color: #e2e8f0;
+            height: 380px;
+            border: 1px solid #1e293b;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            line-height: 1.6;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 8px;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .log-time { color: #64748b; margin-right: 8px; }
+        .log-success { color: #4ade80; font-weight: bold; }
+        .log-error { color: #f87171; font-weight: bold; }
+        .log-payload {
+            background-color: #1e293b;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+            color: #38bdf8;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Disputes Section Styling */
+        .disputes-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--rp-border);
+            padding-bottom: 10px;
+        }
+        .dispute-tab {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--rp-text-muted);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .dispute-tab:hover {
+            color: var(--rp-navy);
+            background-color: rgba(0,0,0,0.02);
+        }
+        .dispute-tab.active {
+            background-color: var(--rp-blue);
+            color: #ffffff;
+        }
+        .dispute-row-item {
+            background-color: #ffffff;
+            border: 1px solid var(--rp-border);
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            transition: transform 0.15s ease;
+        }
+        .dispute-row-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+        }
+        .dispute-doc-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--rp-navy);
+            margin-bottom: 2px;
+        }
+        .dispute-doc-meta {
+            font-size: 12px;
+            color: var(--rp-text-muted);
+        }
+        .status-pill {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-new {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+            border: 1px solid #bee3f8;
+        }
+        .status-pending {
+            background-color: #fff5f5;
+            color: #c53030;
+            border: 1px solid #fed7d7;
+        }
+        .status-completed {
+            background-color: #f0fff4;
+            color: #2f855a;
+            border: 1px solid #c6f6d5;
+        }
+        .status-btn-group {
+            display: flex;
+            gap: 5px;
+        }
+        .btn-status {
+            border: 1px solid var(--rp-border);
+            background-color: #ffffff;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-status.btn-pending:hover {
+            border-color: #e53e3e;
+            color: #e53e3e;
+            background-color: #fff5f5;
+        }
+        .btn-status.btn-completed:hover {
+            border-color: #38a169;
+            color: #38a169;
+            background-color: #f0fff4;
+        }
+        .no-data {
+            padding: 40px;
+            text-align: center;
+            color: var(--rp-text-muted);
+            font-size: 14px;
+            background: #fff;
+            border: 1px dashed var(--rp-border);
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z" fill="#5b7290"/>
+                <path d="M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z" fill="#3395ff"/>
+            </svg>
+            razorpay<span>retention</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li id="menu-simulator" class="sidebar-item active" onclick="switchSidebarTab('simulator')">Webhook Simulator</li>
+            <li id="menu-disputes" class="sidebar-item" onclick="switchSidebarTab('disputes')">Disputes</li>
+            <li class="sidebar-item">Analytics Dashboard</li>
+            <li class="sidebar-item">Security Settings</li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <div class="topbar">
+            <div class="topbar-title" id="main-title">Retainer Webhook Dashboard</div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="active-disputes-badge">
+                    Active Disputes: <strong id="topbar-active-count">0</strong>
+                </div>
+                <div style="font-size: 12px; color: var(--rp-text-muted);">Environment: <strong style="color: var(--rp-blue)">Razorpay Test Mode</strong></div>
+            </div>
+        </div>
+
+        <!-- Simulator Tab Content -->
+        <div id="content-simulator" class="tab-content active">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">Simulate Webhook Trigger</div>
+                    <button class="btn-webhook" onclick="triggerWebhook('payment.failed')">
+                        <span>payment.failed</span>
+                        <span class="badge badge-failed">Failed</span>
+                    </button>
+                    <button class="btn-webhook" onclick="triggerWebhook('payment.dispute.created')">
+                        <span>payment.dispute.created</span>
+                        <span class="badge badge-dispute">Dispute</span>
+                    </button>
+                    <button class="btn-webhook" onclick="triggerWebhook('subscription.halted')">
+                        <span>subscription.halted</span>
+                        <span class="badge badge-halted">Halted</span>
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="card-title">Live Event Streams</div>
+                    <div id="logs" class="logs-container">
+                        <div class="log-entry"><span class="log-time">[00:00:00]</span> Initialized Razorpay Dashboard listener...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disputes Tab Content -->
+        <div id="content-disputes" class="tab-content" style="padding: 30px;">
+            <div class="disputes-tabs">
+                <div id="dtab-all" class="dispute-tab active" onclick="switchDisputeFilter('all')">New disputes</div>
+                <div id="dtab-pending" class="dispute-tab" onclick="switchDisputeFilter('pending')">Pending</div>
+                <div id="dtab-completed" class="dispute-tab" onclick="switchDisputeFilter('completed')">Completed</div>
+            </div>
+            <div class="disputes-list" id="disputes-list-container">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const payloads = {
+            'payment.failed': {
+                "account_id": "acc_test_123",
+                "event": "payment.failed",
+                "payload": {
+                    "payment": {
+                        "entity": {
+                            "id": "pay_test_xyz123",
+                            "email": "angry.customer@example.com",
+                            "contact": "9876543210",
+                            "card_number": "4111111111111111",
+                            "error_description": "insufficient_funds"
+                        }
+                    }
+                }
+            },
+            'payment.dispute.created': {
+                "account_id": "acc_test_123",
+                "event": "payment.dispute.created",
+                "payload": {
+                    "payment": {
+                        "entity": {
+                            "id": "pay_test_dispute_001",
+                            "email": "customer@example.com",
+                            "contact": "9876543210",
+                            "amount": 49900,
+                            "currency": "INR",
+                            "dispute_id": "disp_test_001",
+                            "dispute_reason": "fraud"
+                        }
+                    }
+                }
+            },
+            'subscription.halted': {
+                "account_id": "acc_test_123",
+                "event": "subscription.halted",
+                "payload": {
+                    "subscription": {
+                        "entity": {
+                            "id": "sub_test_halted_001",
+                            "customer_id": "cust_test_001",
+                            "email": "customer@example.com",
+                            "plan_id": "plan_test_monthly",
+                            "status": "halted",
+                            "reason": "payment_failure",
+                            "halted_at": 1724169600
+                        }
+                    }
+                }
+            }
+        };
+
+        // Cache loaded disputes
+        let loadedDisputes = [];
+        let activeFilter = 'all';
+
+        // Sidebar Navigation
+        function switchSidebarTab(tabName) {
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            
+            if (tabName === 'simulator') {
+                document.getElementById('menu-simulator').classList.add('active');
+                document.getElementById('content-simulator').classList.add('active');
+                document.getElementById('main-title').innerText = "Retainer Webhook Dashboard";
+            } else if (tabName === 'disputes') {
+                document.getElementById('menu-disputes').classList.add('active');
+                document.getElementById('content-disputes').classList.add('active');
+                document.getElementById('main-title').innerText = "Chargeback Disputes Management";
+                loadDisputes();
+            }
+        }
+
+        // Inner Dispute Filter Tabs
+        function switchDisputeFilter(filterName) {
+            document.querySelectorAll('.dispute-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('dtab-' + filterName).classList.add('active');
+            activeFilter = filterName;
+            renderDisputes();
+        }
+
+        // Load Disputes from API
+        async function loadDisputes() {
+            try {
+                const response = await fetch('/api/disputes');
+                if (response.ok) {
+                    loadedDisputes = await response.json();
+                    updateActiveDisputesCount();
+                    renderDisputes();
+                }
+            } catch (err) {
+                console.error("Error loading disputes:", err);
+            }
+        }
+
+        // Update active dispute counters
+        function updateActiveDisputesCount() {
+            const activeCount = loadedDisputes.filter(d => d.status === 'Pending').length;
+            document.getElementById('topbar-active-count').innerText = activeCount;
+        }
+
+        // Render disputes list based on filter
+        function renderDisputes() {
+            const container = document.getElementById('disputes-list-container');
+            container.innerHTML = '';
+
+            let filtered = [];
+            if (activeFilter === 'all') {
+                filtered = loadedDisputes.filter(d => d.status === 'New');
+            } else if (activeFilter === 'pending') {
+                filtered = loadedDisputes.filter(d => d.status === 'Pending');
+            } else if (activeFilter === 'completed') {
+                filtered = loadedDisputes.filter(d => d.status === 'Completed');
+            }
+
+            // Sort by creation date descending
+            filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="no-data">No dispute documents found in this tab.</div>';
+                return;
+            }
+
+            filtered.forEach(dispute => {
+                const docName = dispute.file.split(/[\\/]/).pop(); // Get filename
+                const formattedDate = dispute.created_at;
+                const statusClass = 
+                    dispute.status === 'New' ? 'status-new' : 
+                    (dispute.status === 'Pending' ? 'status-pending' : 'status-completed');
+                
+                const itemHTML = `
+                    <div class="dispute-row-item">
+                        <div style="display: flex; flex-direction: column; gap: 4px; text-align: left;">
+                            <div class="dispute-doc-title">📄 <a href="/static/${docName}" target="_blank" style="color: var(--rp-blue); text-decoration: none;">${docName}</a></div>
+                            <div class="dispute-doc-meta">
+                                Payment ID: <code>${dispute.id}</code> | 
+                                Dispute ID: <code>${dispute.dispute_id}</code> | 
+                                Amount: <strong>₹${dispute.amount.toFixed(2)}</strong> | 
+                                Created: ${formattedDate}
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <span class="status-pill ${statusClass}">${dispute.status}</span>
+                            <div class="status-btn-group">
+                                <button class="btn-status btn-pending" onclick="updateDisputeStatus('${dispute.id}', 'Pending')">Pending</button>
+                                <button class="btn-status btn-completed" onclick="updateDisputeStatus('${dispute.id}', 'Completed')">Completed</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += itemHTML;
+            });
+        }
+
+        // Update status of a dispute on backend
+        async function updateDisputeStatus(paymentId, newStatus) {
+            try {
+                const response = await fetch(`/api/disputes/${paymentId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.ok) {
+                    // Update locally
+                    const dispute = loadedDisputes.find(d => d.id === paymentId);
+                    if (dispute) {
+                        dispute.status = newStatus;
+                    }
+                    updateActiveDisputesCount();
+                    // Re-render current view (items will disappear/move if they no longer match the active filter)
+                    renderDisputes();
+                } else {
+                    console.error("Failed to update status on backend.");
+                }
+            } catch (err) {
+                console.error("Network error updating status:", err);
+            }
+        }
+
+        function log(message, type = 'info', extra = '') {
+            const logsDiv = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            let typeClass = '';
+            if (type === 'success') typeClass = 'log-success';
+            if (type === 'error') typeClass = 'log-error';
+            
+            let extraHTML = '';
+            if (extra) {
+                extraHTML = `<div class="log-payload">${extra}</div>`;
+            }
+            
+            logsDiv.innerHTML += `
+                <div class="log-entry">
+                    <span class="log-time">[${time}]</span>
+                    <span class="${typeClass}">${message}</span>
+                    ${extraHTML}
+                </div>
+            `;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        async function triggerWebhook(eventName) {
+            log(`Triggering webhook endpoint with ${eventName}...`, 'info');
+            try {
+                const response = await fetch('/webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloads[eventName])
+                });
+                
+                const data = await response.json();
+                const prettyJSON = JSON.stringify(data, null, 2);
+                if (response.ok) {
+                    log(`[${eventName}] Response 200 OK`, 'success', prettyJSON);
+                    // Reload disputes automatically if a dispute webhook was triggered
+                    if (eventName === 'payment.dispute.created') {
+                        setTimeout(loadDisputes, 500);
+                    }
+                } else {
+                    log(`[${eventName}] Error ${response.status}`, 'error', prettyJSON);
+                }
+            } catch (err) {
+                log(`[${eventName}] Network Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Periodically check/load counts on load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDisputes();
+        });
+    </script>
+</body>
+</html>

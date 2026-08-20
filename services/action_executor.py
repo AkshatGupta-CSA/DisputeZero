@@ -8,7 +8,11 @@ def execute_dispute_defense(payment_id: str, ai_letter_text: str) -> str:
     Converts the LLM's defense letter into a formal PDF and simulates 
     uploading it to the Razorpay Disputes API.
     """
-    pdf_filename = f"defense_letter_{payment_id}.pdf"
+    # Create disputes directory if it does not exist
+    disputes_dir = "disputes"
+    os.makedirs(disputes_dir, exist_ok=True)
+    
+    pdf_filename = os.path.join(disputes_dir, f"defense_letter_{payment_id}.pdf")
     
     # Convert raw markdown formatting into clean HTML elements
     html_body = markdown.markdown(ai_letter_text)
@@ -46,10 +50,10 @@ def execute_dispute_defense(payment_id: str, ai_letter_text: str) -> str:
             pdfkit.from_string(html_content, pdf_filename)
         print(f"[ACTION] Successfully generated defense PDF: {pdf_filename}")
     except Exception as e:
-        print(f"[WARNING] wkhtmltopdf not found or error generating PDF: {e}. Saving as text backup.")
-        with open(f"defense_letter_{payment_id}.txt", "w", encoding="utf-8") as f:
+        pdf_filename = os.path.join(disputes_dir, f"defense_letter_{payment_id}.txt")
+        print(f"[WARNING] wkhtmltopdf not found or error generating PDF: {e}. Saving as text backup to {pdf_filename}")
+        with open(pdf_filename, "w", encoding="utf-8") as f:
             f.write(ai_letter_text)
-        pdf_filename = f"defense_letter_{payment_id}.txt"
 
     # Simulate submission to Razorpay Test Disputes API
     # In production, you would make an authenticated POST/PUT request to Razorpay's dispute evidence upload endpoint.

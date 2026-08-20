@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 import uvicorn
 from core.security import mask_pii
 from services.razorpay_client import (
@@ -14,353 +14,159 @@ import os
 import webbrowser
 import threading
 import time
+import json
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(title="Unified Revenue Retention Agent")
 
-DASHBOARD_HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Razorpay Webhook Retainer Dashboard</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z%22 fill=%22%230c2451%22/><path d=%22M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z%22 fill=%22%233395ff%22/></svg>">
-    <style>
-        :root {
-            --rp-navy: #0b192c;
-            --rp-blue: #0c6cff;
-            --rp-blue-hover: #0056cc;
-            --rp-bg: #f8fafe;
-            --rp-card-bg: #ffffff;
-            --rp-text-main: #2d3748;
-            --rp-text-muted: #718096;
-            --rp-border: #e2e8f0;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--rp-bg);
-            color: var(--rp-text-main);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .sidebar {
-            width: 240px;
-            background-color: var(--rp-navy);
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            padding: 20px 0;
-            flex-shrink: 0;
-        }
-        .sidebar-logo {
-            font-size: 20px;
-            font-weight: 800;
-            padding: 0 24px;
-            margin-bottom: 30px;
-            display: flex;
-            align-items: center;
-            color: #ffffff;
-            letter-spacing: -0.5px;
-            gap: 8px;
-        }
-        .sidebar-logo svg {
-            flex-shrink: 0;
-        }
-        .sidebar-logo span {
-            color: var(--rp-blue);
-            margin-left: 2px;
-            font-weight: 400;
-        }
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .sidebar-item {
-            padding: 14px 24px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            color: #a0aec0;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-        }
-        .sidebar-item:hover, .sidebar-item.active {
-            color: #ffffff;
-            background-color: rgba(255, 255, 255, 0.05);
-            border-left: 4px solid var(--rp-blue);
-            padding-left: 20px;
-        }
-        .main-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .topbar {
-            height: 60px;
-            background-color: #ffffff;
-            border-bottom: 1px solid var(--rp-border);
-            display: flex;
-            align-items: center;
-            padding: 0 30px;
-            justify-content: space-between;
-        }
-        .topbar-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--rp-text-main);
-        }
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 30px;
-            padding: 30px;
-            flex-grow: 1;
-            overflow-y: auto;
-            align-items: start;
-        }
-        .card {
-            background-color: var(--rp-card-bg);
-            border-radius: 6px;
-            border: 1px solid var(--rp-border);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-        }
-        .card-title {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--rp-text-muted);
-            margin-bottom: 20px;
-        }
-        .btn-webhook {
-            background-color: #ffffff;
-            border: 1px solid var(--rp-border);
-            color: var(--rp-text-main);
-            padding: 14px 20px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-            text-align: left;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .btn-webhook:hover {
-            border-color: var(--rp-blue);
-            box-shadow: 0 0 0 1px var(--rp-blue);
-            background-color: #fcfdff;
-        }
-        .btn-webhook:active {
-            transform: scale(0.99);
-        }
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-        .badge-failed { background-color: #fff5f5; color: #e53e3e; border: 1px solid #fed7d7; }
-        .badge-dispute { background-color: #fffaf0; color: #dd6b20; border: 1px solid #feebc8; }
-        .badge-halted { background-color: #f0fff4; color: #38a169; border: 1px solid #c6f6d5; }
- 
-        .logs-container {
-            background-color: #0f172a;
-            border-radius: 4px;
-            padding: 16px;
-            overflow-y: auto;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 12px;
-            color: #e2e8f0;
-            height: 380px;
-            border: 1px solid #1e293b;
-        }
-        .log-entry {
-            margin-bottom: 10px;
-            line-height: 1.6;
-            border-bottom: 1px solid #1e293b;
-            padding-bottom: 8px;
-        }
-        .log-entry:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-        .log-time { color: #64748b; margin-right: 8px; }
-        .log-success { color: #4ade80; font-weight: bold; }
-        .log-error { color: #f87171; font-weight: bold; }
-        .log-payload {
-            background-color: #1e293b;
-            padding: 8px;
-            border-radius: 4px;
-            margin-top: 5px;
-            color: #38bdf8;
-            overflow-x: auto;
-            white-space: pre-wrap;
-        }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <div class="sidebar-logo">
-            <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z" fill="#5b7290"/>
-                <path d="M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z" fill="#3395ff"/>
-            </svg>
-            razorpay<span>retention</span>
-        </div>
-        <ul class="sidebar-menu">
-            <li class="sidebar-item active">Webhook Simulator</li>
-            <li class="sidebar-item">Analytics Dashboard</li>
-            <li class="sidebar-item">Dispute Files</li>
-            <li class="sidebar-item">Security Settings</li>
-        </ul>
-    </div>
-    <div class="main-content">
-        <div class="topbar">
-            <div class="topbar-title">Retainer Webhook Dashboard</div>
-            <div style="font-size: 12px; color: var(--rp-text-muted);">Environment: <strong style="color: var(--rp-blue)">Razorpay Test Mode</strong></div>
-        </div>
-        <div class="dashboard-grid">
-            <div class="card">
-                <div class="card-title">Simulate Webhook Trigger</div>
-                <button class="btn-webhook" onclick="triggerWebhook('payment.failed')">
-                    <span>payment.failed</span>
-                    <span class="badge badge-failed">Failed</span>
-                </button>
-                <button class="btn-webhook" onclick="triggerWebhook('payment.dispute.created')">
-                    <span>payment.dispute.created</span>
-                    <span class="badge badge-dispute">Dispute</span>
-                </button>
-                <button class="btn-webhook" onclick="triggerWebhook('subscription.halted')">
-                    <span>subscription.halted</span>
-                    <span class="badge badge-halted">Halted</span>
-                </button>
-            </div>
-            <div class="card">
-                <div class="card-title">Live Event Streams</div>
-                <div id="logs" class="logs-container">
-                    <div class="log-entry"><span class="log-time">[00:00:00]</span> Initialized Razorpay Dashboard listener...</div>
-                </div>
-            </div>
-        </div>
-    </div>
+# Initialize disputes metadata database if not present
+DISPUTES_FILE = "disputes_meta.json"
 
-    <script>
-        const payloads = {
-            'payment.failed': {
-                "account_id": "acc_test_123",
-                "event": "payment.failed",
-                "payload": {
-                    "payment": {
-                        "entity": {
-                            "id": "pay_test_xyz123",
-                            "email": "angry.customer@example.com",
-                            "contact": "9876543210",
-                            "card_number": "4111111111111111",
-                            "error_description": "insufficient_funds"
-                        }
-                    }
-                }
-            },
-            'payment.dispute.created': {
-                "account_id": "acc_test_123",
-                "event": "payment.dispute.created",
-                "payload": {
-                    "payment": {
-                        "entity": {
-                            "id": "pay_test_dispute_001",
-                            "email": "customer@example.com",
-                            "contact": "9876543210",
-                            "amount": 49900,
-                            "currency": "INR",
-                            "dispute_id": "disp_test_001",
-                            "dispute_reason": "fraud"
-                        }
-                    }
-                }
-            },
-            'subscription.halted': {
-                "account_id": "acc_test_123",
-                "event": "subscription.halted",
-                "payload": {
-                    "subscription": {
-                        "entity": {
-                            "id": "sub_test_halted_001",
-                            "customer_id": "cust_test_001",
-                            "email": "customer@example.com",
-                            "plan_id": "plan_test_monthly",
-                            "status": "halted",
-                            "reason": "payment_failure",
-                            "halted_at": 1724169600
-                        }
-                    }
-                }
-            }
-        };
-
-        function log(message, type = 'info', extra = '') {
-            const logsDiv = document.getElementById('logs');
-            const time = new Date().toLocaleTimeString();
-            let typeClass = '';
-            if (type === 'success') typeClass = 'log-success';
-            if (type === 'error') typeClass = 'log-error';
+def load_disputes() -> dict:
+    import glob
+    disputes = {}
+    if os.path.exists(DISPUTES_FILE):
+        try:
+            with open(DISPUTES_FILE, "r", encoding="utf-8") as f:
+                disputes = json.load(f)
+        except Exception:
+            disputes = {}
             
-            let extraHTML = '';
-            if (extra) {
-                extraHTML = `<div class="log-payload">${extra}</div>`;
-            }
+    # Sync with actual files present in the disputes directory
+    file_patterns = [os.path.join("disputes", "defense_letter_*.pdf"), os.path.join("disputes", "defense_letter_*.txt")]
+    found_payment_ids = set()
+    changed = False
+    
+    for pattern in file_patterns:
+        for file_path in glob.glob(pattern):
+            filename = os.path.basename(file_path)
+            # Extract payment ID (filename pattern is defense_letter_{payment_id}.{ext})
+            name_without_prefix = filename[len("defense_letter_"):]
+            payment_id, _ = os.path.splitext(name_without_prefix)
             
-            logsDiv.innerHTML += `
-                <div class="log-entry">
-                    <span class="log-time">[${time}]</span>
-                    <span class="${typeClass}">${message}</span>
-                    ${extraHTML}
-                </div>
-            `;
-            logsDiv.scrollTop = logsDiv.scrollHeight;
-        }
-
-        async function triggerWebhook(eventName) {
-            log(`Triggering webhook endpoint with ${eventName}...`, 'info');
-            try {
-                const response = await fetch('/webhook', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payloads[eventName])
-                });
+            found_payment_ids.add(payment_id)
+            
+            if payment_id not in disputes:
+                try:
+                    mtime = os.path.getmtime(file_path)
+                    created_at = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(mtime))
+                except Exception:
+                    created_at = time.strftime("%Y-%m-%d %H:%M:%S")
                 
-                const data = await response.json();
-                const prettyJSON = JSON.stringify(data, null, 2);
-                if (response.ok) {
-                    log(`[${eventName}] Response 200 OK`, 'success', prettyJSON);
-                } else {
-                    log(`[${eventName}] Error ${response.status}`, 'error', prettyJSON);
+                disputes[payment_id] = {
+                    "id": payment_id,
+                    "dispute_id": "disp_mock_" + payment_id[-6:],
+                    "status": "New",
+                    "file": file_path,
+                    "amount": 499.00,
+                    "created_at": created_at
                 }
-            } catch (err) {
-                log(`[${eventName}] Network Error: ${err.message}`, 'error');
-            }
-        }
-    </script>
-</body>
-</html>
-"""
+                changed = True
+                
+    # Clean up records if their corresponding physical files were deleted
+    to_delete = []
+    for pid, info in disputes.items():
+        file_path = info.get("file", "")
+        if not os.path.exists(file_path):
+            to_delete.append(pid)
+            
+    if to_delete:
+        for pid in to_delete:
+            del disputes[pid]
+        changed = True
+        
+    if changed:
+        save_disputes(disputes)
+        
+    return disputes
 
-@app.get("/dashboard", response_class=HTMLResponse)
+def save_disputes(disputes: dict):
+    with open(DISPUTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(disputes, f, indent=2)
+
+# Create file if missing
+if not os.path.exists(DISPUTES_FILE):
+    os.makedirs("disputes", exist_ok=True)
+    for placeholder in ["defense_letter_pay_test_dispute_001.pdf", "defense_letter_pay_test_dispute_002.pdf"]:
+        placeholder_path = os.path.join("disputes", placeholder)
+        if not os.path.exists(placeholder_path):
+            with open(placeholder_path, "w") as f:
+                f.write("%PDF-1.4 Mock PDF placeholder")
+                
+    mock_disputes = {
+        "pay_test_dispute_001": {
+            "id": "pay_test_dispute_001",
+            "dispute_id": "disp_test_001",
+            "status": "New",
+            "file": os.path.join("disputes", "defense_letter_pay_test_dispute_001.pdf"),
+            "amount": 499.00,
+            "created_at": "2026-08-20 20:30:00"
+        },
+        "pay_test_dispute_002": {
+            "id": "pay_test_dispute_002",
+            "dispute_id": "disp_test_002",
+            "status": "Completed",
+            "file": os.path.join("disputes", "defense_letter_pay_test_dispute_002.pdf"),
+            "amount": 1250.00,
+            "created_at": "2026-08-20 18:15:00"
+        }
+    }
+    save_disputes(mock_disputes)
+
+@app.get("/checkout")
+async def get_checkout():
+    return FileResponse("checkout.html")
+
+@app.get("/checkout-config")
+async def get_checkout_config():
+    return {
+        "key": os.getenv("RAZORPAY_KEY_ID"),
+        "amount": 499900,
+        "currency": "INR",
+        "name": "Acme SaaS",
+        "description": "Pro Annual Plan Subscription"
+    }
+
+@app.get("/admin_console")
+async def get_admin_console():
+    return FileResponse("admin_console.html")
+
+@app.get("/dashboard")
 async def get_dashboard():
-    return DASHBOARD_HTML
+    return FileResponse("admin_console.html")
+
+@app.get("/payment_success")
+async def get_payment_success():
+    return FileResponse("payment_success.html")
+
+class DisputeStatusUpdate(BaseModel):
+    status: str
+
+@app.get("/api/disputes")
+async def get_disputes_api():
+    return list(load_disputes().values())
+
+@app.post("/api/disputes/{payment_id}/status")
+async def update_dispute_status(payment_id: str, payload: DisputeStatusUpdate):
+    disputes = load_disputes()
+    if payment_id not in disputes:
+        raise HTTPException(status_code=404, detail="Dispute not found")
+    if payload.status not in ["Pending", "Completed"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    disputes[payment_id]["status"] = payload.status
+    save_disputes(disputes)
+    return {"status": "success", "payment_id": payment_id, "new_status": payload.status}
+
+@app.get("/static/{filename}")
+async def get_static_file(filename: str):
+    if filename.startswith("defense_letter_"):
+        file_path = os.path.join("disputes", filename)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.post("/webhook")
 async def receive_razorpay_webhook(request: Request):
@@ -415,6 +221,21 @@ async def receive_razorpay_webhook(request: Request):
             pdf_path = execute_dispute_defense(payment_id, ai_output)
             action_result = {"action": "dispute_uploaded", "file": pdf_path}
             
+            # Record in disputes metadata database
+            try:
+                disputes = load_disputes()
+                disputes[payment_id] = {
+                    "id": payment_id,
+                    "dispute_id": secured_payload.get("payload", {}).get("payment", {}).get("entity", {}).get("dispute_id", "disp_mock_" + payment_id[-6:]),
+                    "status": "New",
+                    "file": pdf_path,
+                    "amount": float(secured_payload.get("payload", {}).get("payment", {}).get("entity", {}).get("amount", 49900)) / 100.0,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                save_disputes(disputes)
+            except Exception as e:
+                print(f"Error updating disputes metadata: {e}")
+            
         elif event_type in ["payment.failed", "subscription.halted"]:
             recovery_res = execute_subscription_recovery(payment_id, ai_output)
             action_result = {"action": "whatsapp_recovery_sent", "details": recovery_res}
@@ -433,7 +254,7 @@ async def receive_razorpay_webhook(request: Request):
 
 def open_browser():
     time.sleep(1.5)
-    webbrowser.open("http://localhost:8000/dashboard")
+    webbrowser.open("http://localhost:8000/checkout")
 
 if __name__ == "__main__":
     print("Starting Complete Unified Revenue Retention Agent on port 8000...")
