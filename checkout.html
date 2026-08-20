@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script>
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
     <title>Acme SaaS - Billing Portal</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M14.26 10.098L3.389 17.166 1.564 24h9.008l3.688-13.902Z%22 fill=%22%230c2451%22/><path d=%22M22.436 0l-11.91 7.773-1.174 4.276 6.625-4.297L11.65 24h4.391l6.395-24z%22 fill=%22%233395ff%22/></svg>">
     <style>
@@ -14,6 +18,39 @@
             --border-color: #e2e8f0;
             --rp-text-muted: #718096;
             --rp-text-main: #2d3748;
+        }
+        [data-theme="dark"] {
+            --bg: #090d16;
+            --card-bg: #111827;
+            --text-color: #f3f4f6;
+            --border-color: #1f2937;
+            --rp-navy: #1f2937;
+            --rp-text-main: #f3f4f6;
+            --rp-text-muted: #9ca3af;
+        }
+        [data-theme="dark"] .price-row {
+            background-color: #111827;
+        }
+        [data-theme="dark"] .footer {
+            background-color: #111827;
+        }
+        [data-theme="dark"] .modal-container {
+            background-color: #111827;
+        }
+        [data-theme="dark"] .modal-tabs {
+            background-color: #1a202c;
+        }
+        [data-theme="dark"] .modal-tab.active {
+            background-color: #111827;
+        }
+        [data-theme="dark"] .sim-option {
+            background-color: #1a202c;
+        }
+        [data-theme="dark"] .sim-option:hover {
+            background-color: #1e293b;
+        }
+        [data-theme="dark"] .modal-footer {
+            background-color: #1a202c;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
