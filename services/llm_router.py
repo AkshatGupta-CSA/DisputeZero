@@ -48,7 +48,7 @@ def process_event_with_gemini(event_type: str, secured_payload: dict, context: d
         return {"error": "Unknown event type for LLM routing."}
 
     # Try different models sequentially to handle API key / version model access permissions
-    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    models_to_try = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     response = None
     last_error = None
 
